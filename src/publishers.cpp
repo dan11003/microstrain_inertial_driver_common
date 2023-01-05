@@ -208,8 +208,8 @@ bool Publishers::deactivate()
 void Publishers::publish()
 {
   // If the corresponding messages were updated, publish the transforms
-  if (filter_relative_odom_pub_ && filter_relative_odom_pub_->updated())
-    transform_broadcaster_->sendTransform(filter_relative_transform_msg_);
+//  if (filter_relative_odom_pub_ && filter_relative_odom_pub_->updated())
+//    transform_broadcaster_->sendTransform(filter_relative_transform_msg_);
 
   imu_pub_->publish();
   mag_pub_->publish();
