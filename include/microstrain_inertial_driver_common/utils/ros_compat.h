@@ -436,7 +436,7 @@ inline RosTimeType rosTimeNow(RosNodeType* node)
 inline void setRosTime(RosTimeType* time, int32_t sec, int32_t nsec)
 {
   time->sec = sec;
-  time->nsec = nsec;
+  time->nsec = nsec*1000;
 }
 
 /**
@@ -745,7 +745,7 @@ inline RosTimeType rosTimeNow(RosNodeType* node)
 inline void setRosTime(builtin_interfaces::msg::Time* time, int32_t sec, int32_t nsec)
 {
   time->sec = sec;
-  time->nanosec = nsec;
+  time->nanosec = nsec*1000;
 }
 
 /**
