@@ -159,6 +159,16 @@ public:
     }
 
     /**
+     * \brief Publishes a message on the publisher. Will always publish the message as long as the publisher is initialized
+     * \param msg The message to publish
+     */
+    void publish(const MessageType& msg)
+    {
+      if (publisher_ != nullptr)
+        publisher_->publish(msg);
+    }
+
+    /**
      * \brief Gets the topic this publisher will publish to
      * \return The topic this publisher will publish to
      */
@@ -206,16 +216,19 @@ public:
 
 
   // IMU Publishers
-  Publisher<ImuMsg>::SharedPtr                            imu_pub_      = Publisher<ImuMsg>::initialize(IMU_DATA_TOPIC);
-  Publisher<MagneticFieldMsg>::SharedPtr                  mag_pub_      = Publisher<MagneticFieldMsg>::initialize(IMU_MAG_TOPIC);
-  Publisher<GPSCorrelationTimestampStampedMsg>::SharedPtr gps_corr_pub_ = Publisher<GPSCorrelationTimestampStampedMsg>::initialize(IMU_GPS_CORR_TOPIC);
+  Publisher<ImuMsg>::SharedPtr                            imu_pub_                  = Publisher<ImuMsg>::initialize(IMU_DATA_TOPIC);
+  Publisher<MagneticFieldMsg>::SharedPtr                  mag_pub_                  = Publisher<MagneticFieldMsg>::initialize(IMU_MAG_TOPIC);
+  Publisher<GPSCorrelationTimestampStampedMsg>::SharedPtr gps_corr_pub_             = Publisher<GPSCorrelationTimestampStampedMsg>::initialize(IMU_GPS_CORR_TOPIC);
+  Publisher<ImuOverrangeStatusMsg>::SharedPtr             imu_overrange_status_pub_ = Publisher<ImuOverrangeStatusMsg>::initialize(IMU_OVERRANGE_STATUS_TOPIC);
 
   // GNSS publishers
-  Publisher<NavSatFixMsg>::SharedPtrVec        gnss_pub_               = Publisher<NavSatFixMsg>::initializeVec({GNSS1_NAVSATFIX_TOPIC, GNSS2_NAVSATFIX_TOPIC});
-  Publisher<OdometryMsg>::SharedPtrVec         gnss_odom_pub_          = Publisher<OdometryMsg>::initializeVec({GNSS1_ODOM_TOPIC, GNSS2_ODOM_TOPIC});
-  Publisher<TimeReferenceMsg>::SharedPtrVec    gnss_time_pub_          = Publisher<TimeReferenceMsg>::initializeVec({GNSS1_TIME_REF_TOPIC, GNSS2_TIME_REF_TOPIC});
-  Publisher<GNSSAidingStatusMsg>::SharedPtrVec gnss_aiding_status_pub_ = Publisher<GNSSAidingStatusMsg>::initializeVec({GNSS1_AIDING_STATUS_TOPIC, GNSS2_AIDING_STATUS_TOPIC});
-  Publisher<GNSSFixInfoMsg>::SharedPtrVec      gnss_fix_info_pub_      = Publisher<GNSSFixInfoMsg>::initializeVec({GNSS1_FIX_INFO_TOPIC, GNSS2_FIX_INFO_TOPIC});
+  Publisher<NavSatFixMsg>::SharedPtrVec            gnss_pub_                    = Publisher<NavSatFixMsg>::initializeVec({GNSS1_NAVSATFIX_TOPIC, GNSS2_NAVSATFIX_TOPIC});
+  Publisher<OdometryMsg>::SharedPtrVec             gnss_odom_pub_               = Publisher<OdometryMsg>::initializeVec({GNSS1_ODOM_TOPIC, GNSS2_ODOM_TOPIC});
+  Publisher<TimeReferenceMsg>::SharedPtrVec        gnss_time_pub_               = Publisher<TimeReferenceMsg>::initializeVec({GNSS1_TIME_REF_TOPIC, GNSS2_TIME_REF_TOPIC});
+  Publisher<GNSSAidingStatusMsg>::SharedPtrVec     gnss_aiding_status_pub_      = Publisher<GNSSAidingStatusMsg>::initializeVec({GNSS1_AIDING_STATUS_TOPIC, GNSS2_AIDING_STATUS_TOPIC});
+  Publisher<GNSSFixInfoMsg>::SharedPtrVec          gnss_fix_info_pub_           = Publisher<GNSSFixInfoMsg>::initializeVec({GNSS1_FIX_INFO_TOPIC, GNSS2_FIX_INFO_TOPIC});
+  Publisher<GNSSSbasInfoMsg>::SharedPtrVec         gnss_sbas_info_pub_          = Publisher<GNSSSbasInfoMsg>::initializeVec({GNSS1_SBAS_INFO_TOPIC, GNSS2_SBAS_INFO_TOPIC});
+  Publisher<GNSSRfErrorDetectionMsg>::SharedPtrVec gnss_rf_error_detection_pub_ = Publisher<GNSSRfErrorDetectionMsg>::initializeVec({GNSS1_RF_ERROR_DETECTION_TOPIC, GNSS2_RF_ERROR_DETECTION_TOPIC});
 
   // RTK publishers
   Publisher<RTKStatusMsg>::SharedPtr   rtk_pub_    = Publisher<RTKStatusMsg>::initialize(RTK_STATUS_TOPIC);
@@ -230,9 +243,6 @@ public:
   Publisher<OdometryMsg>::SharedPtr                       filter_relative_odom_pub_              = Publisher<OdometryMsg>::initialize(FILTER_RELATIVE_ODOM_TOPIC);
   Publisher<ImuMsg>::SharedPtr                            filter_imu_pub_                        = Publisher<ImuMsg>::initialize(FILTER_IMU_DATA_TOPIC);
   Publisher<GNSSDualAntennaStatusMsg>::SharedPtr          gnss_dual_antenna_status_pub_          = Publisher<GNSSDualAntennaStatusMsg>::initialize(FILTER_DUAL_ANTENNA_STATUS_TOPIC);
-
-  // Device Status publishser
-  Publisher<StatusMsg>::SharedPtr device_status_pub_ = Publisher<StatusMsg>::initialize(DEVICE_STATUS_TOPIC);
 
   // NMEA sentence publisher
   Publisher<NMEASentenceMsg>::SharedPtr nmea_sentence_pub_ = Publisher<NMEASentenceMsg>::initialize(NMEA_SENTENCE_TOPIC);
@@ -268,12 +278,15 @@ private:
   void handleSensorScaledGyro(const mip::data_sensor::ScaledGyro& scaled_gyro, const uint8_t descriptor_set, mip::Timestamp timestamp);
   void handleSensorCompQuaternion(const mip::data_sensor::CompQuaternion& comp_quaternion, const uint8_t descriptor_set, mip::Timestamp timestamp);
   void handleSensorScaledMag(const mip::data_sensor::ScaledMag& scaled_mag, const uint8_t descriptor_set, mip::Timestamp timestamp);
+  void handleSensorOverrangeStatus(const mip::data_sensor::OverrangeStatus& overrange_status, const uint8_t descriptor_set, mip::Timestamp timestamp);
 
-  // Callbcaks to handle GNSS data from the device
+  // Callbcaks to handle GNSS1/2 data from the device
   void handleGnssGpsTime(const mip::data_gnss::GpsTime& gps_time, const uint8_t descriptor_set, mip::Timestamp timestamp);
   void handleGnssPosLlh(const mip::data_gnss::PosLlh& pos_llh, const uint8_t descriptor_set, mip::Timestamp timestamp);
   void handleGnssVelNed(const mip::data_gnss::VelNed& vel_ned, const uint8_t descriptor_set, mip::Timestamp timestamp);
   void handleGnssFixInfo(const mip::data_gnss::FixInfo& fix_info, const uint8_t descriptor_set, mip::Timestamp timestamp);
+  void handleGnssSbasInfo(const mip::data_gnss::SbasInfo& sbas_info, const uint8_t descriptor_set, mip::Timestamp timestamp);
+  void handleGnssRfErrorDetection(const mip::data_gnss::RfErrorDetection& rf_error_detection, const uint8_t descriptor_set, mip::Timestamp timestamp);
 
   // Callbacks to handle RTK data from the device
   void handleRtkCorrectionsStatus(const mip::data_gnss::RtkCorrectionsStatus& rtk_corrections_status, const uint8_t descriptor_set, mip::Timestamp timestamp);
@@ -304,6 +317,13 @@ private:
    * \param timestamp The timestamp provided by the MIP SDK for when the packet was received
    */
   void updateHeaderTime(RosHeaderType* header, uint8_t descriptor_set, mip::Timestamp timestamp);
+
+  /**
+   * \brief Updates the header's timestamp to the UTC representation of the GPS timestamp
+   * \param header The time object to set the time on
+   * \param timestamp The GPS timestamp to use to update the header
+   */
+  static void setGpsTime(RosTimeType* time, const mip::data_shared::GpsTimestamp& timestamp);
 
   // List of MIP dispatch handlers used to subscribe to data from the MIP SDK
   std::vector<std::shared_ptr<mip::C::mip_dispatch_handler>> mip_dispatch_handlers_;

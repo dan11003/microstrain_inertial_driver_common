@@ -160,9 +160,11 @@ mip::CmdResult RosMipDeviceMain::updateDeviceDescriptors()
   mip::CmdResult result_extended =  mip::commands_base::getExtendedDescriptors(*device_, &(descriptors[descriptors_count]), descriptors_max_size - descriptors_count, &extended_descriptors_count);
   const uint16_t total_descriptors = descriptors_count + extended_descriptors_count;
 
-  // All devices should support both commands, so if either fail, this command failed
-  if (!result || !result_extended)
+  // Not all devices support both commands, so only error if the first fails. Just log if the second fails
+  if (!result)
     return result;
+  if (!result_extended)
+    MICROSTRAIN_DEBUG(node_, "Device does not appear to support the extended descriptors command.");
 
   // Shoule be a continuous list, so just iterate and save the descriptor sets to a seperate list
   for (uint16_t i = 0; i < total_descriptors; i++)
@@ -282,7 +284,7 @@ bool RosMipDeviceMain::supportsDescriptor(const uint8_t descriptor_set, const ui
   return std::find(supported_descriptors_.begin(), supported_descriptors_.end(), full_descriptor) != supported_descriptors_.end();
 }
 
-uint16_t RosMipDeviceMain::getDecimationFromHertz(const uint8_t descriptor_set, const uint16_t hertz)
+uint16_t RosMipDeviceMain::getDecimationFromHertz(const uint8_t descriptor_set, const float hertz)
 {
   // Update the base rate if we don't have it yet
   mip::CmdResult result;
@@ -290,7 +292,20 @@ uint16_t RosMipDeviceMain::getDecimationFromHertz(const uint8_t descriptor_set, 
     if (!(result = updateBaseRate(descriptor_set)))
       throw std::runtime_error(std::string("MIP Error") + "(" + std::to_string(result.value) + "): " + result.name());
 
-  return base_rates_[descriptor_set] / hertz;
+  // Calculate the decimation, and if the number is not evenly divisible, log a warning
+  uint16_t decimation = 0;
+  if (hertz != 0)
+  {
+    const uint16_t base_rate = base_rates_[descriptor_set];
+    decimation = base_rate / hertz;
+    if (std::remainder(base_rate, hertz) != 0)
+    {
+      const double actual_hertz = decimation == 0 ? 0 : static_cast<double>(base_rate) / decimation;
+      MICROSTRAIN_WARN(node_, "Requested data rate for descriptor set 0x%02x is not a valid data rate as the base rate is not evenly divisible by the data rate (%u / %.4f)", descriptor_set, base_rate, hertz);
+      MICROSTRAIN_WARN(node_, "  Streaming will be closer to %.4f hz instead of %.4f hz", actual_hertz, hertz);
+    }
+  }
+  return decimation;
 }
 
 }  // namespace microstrain

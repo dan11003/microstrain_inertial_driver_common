@@ -17,6 +17,7 @@
  */
 #include <string>
 #include <memory>
+#include <vector>
 
 /**
  * Common Defines
@@ -62,6 +63,7 @@ constexpr auto NUM_GNSS = 2;
 #include "nmea_msgs/Sentence.h"
 
 #include "microstrain_inertial_msgs/Status.h"
+#include "microstrain_inertial_msgs/ImuOverrangeStatus.h"
 #include "microstrain_inertial_msgs/RTKStatus.h"
 #include "microstrain_inertial_msgs/RTKStatusV1.h"
 #include "microstrain_inertial_msgs/FilterStatus.h"
@@ -72,6 +74,8 @@ constexpr auto NUM_GNSS = 2;
 #include "microstrain_inertial_msgs/GNSSAidingStatus.h"
 #include "microstrain_inertial_msgs/GNSSDualAntennaStatus.h"
 #include "microstrain_inertial_msgs/GNSSFixInfo.h"
+#include "microstrain_inertial_msgs/GNSSSbasInfo.h"
+#include "microstrain_inertial_msgs/GNSSRfErrorDetection.h"
 
 #include "microstrain_inertial_msgs/InputSpeedMeasurement.h"
 
@@ -169,6 +173,7 @@ constexpr auto NUM_GNSS = 2;
 #endif
 
 #include "microstrain_inertial_msgs/msg/status.hpp"
+#include "microstrain_inertial_msgs/msg/imu_overrange_status.hpp"
 #include "microstrain_inertial_msgs/msg/rtk_status.hpp"
 #include "microstrain_inertial_msgs/msg/rtk_status_v1.hpp"
 #include "microstrain_inertial_msgs/msg/filter_status.hpp"
@@ -179,6 +184,8 @@ constexpr auto NUM_GNSS = 2;
 #include "microstrain_inertial_msgs/msg/gnss_aiding_status.hpp"
 #include "microstrain_inertial_msgs/msg/gnss_dual_antenna_status.hpp"
 #include "microstrain_inertial_msgs/msg/gnss_fix_info.hpp"
+#include "microstrain_inertial_msgs/msg/gnss_sbas_info.hpp"
+#include "microstrain_inertial_msgs/msg/gnss_rf_error_detection.hpp"
 
 #include "microstrain_inertial_msgs/msg/input_speed_measurement.hpp"
 
@@ -291,6 +298,7 @@ using MagneticFieldMsg = ::sensor_msgs::MagneticField;
 using TimeReferenceMsg = ::sensor_msgs::TimeReference;
 using NMEASentenceMsg = ::nmea_msgs::Sentence;
 using StatusMsg = ::microstrain_inertial_msgs::Status;
+using ImuOverrangeStatusMsg = ::microstrain_inertial_msgs::ImuOverrangeStatus;
 using RTKStatusMsg = ::microstrain_inertial_msgs::RTKStatus;
 using RTKStatusMsgV1 = ::microstrain_inertial_msgs::RTKStatusV1;
 using FilterStatusMsg = ::microstrain_inertial_msgs::FilterStatus;
@@ -302,6 +310,9 @@ using GNSSDualAntennaStatusMsg = ::microstrain_inertial_msgs::GNSSDualAntennaSta
 using GNSSFixInfoMsg = ::microstrain_inertial_msgs::GNSSFixInfo;
 using FilterHeadingStateMsg = ::microstrain_inertial_msgs::FilterHeadingState;
 using GPSCorrelationTimestampStampedMsg = ::microstrain_inertial_msgs::GPSCorrelationTimestampStamped;
+using GNSSSbasInfoMsg = ::microstrain_inertial_msgs::GNSSSbasInfo;
+using GNSSRfErrorDetectionMsg = ::microstrain_inertial_msgs::GNSSRfErrorDetection;
+
 using TransformStampedMsg = ::geometry_msgs::TransformStamped;
 
 // ROS1 Transform Broadcaster
@@ -405,6 +416,9 @@ using DeviceReportServiceMsg = ::microstrain_inertial_msgs::DeviceReport;
 using DeviceSettingsServiceMsg = ::microstrain_inertial_msgs::DeviceSettings;
 
 using SetFilterSpeedLeverArmServiceMsg = ::microstrain_inertial_msgs::SetFilterSpeedLeverArm;
+
+// ROS1 aliases not intended to be used outside this file
+using ParamIntVector = std::vector<int32_t>;
 
 // ROS1 Logging
 #define MICROSTRAIN_DEBUG(NODE, ...) ROS_DEBUG(__VA_ARGS__)
@@ -569,7 +583,7 @@ inline void stopTimer(RosTimerType timer)
 #elif MICROSTRAIN_ROS_VERSION == 2
 // ROS2 Generic Types
 using RosNodeType = ::rclcpp_lifecycle::LifecycleNode;
-using RosTimeType = ::rclcpp::Time;
+using RosTimeType = ::builtin_interfaces::msg::Time;
 using RosTimerType = ::rclcpp::TimerBase::SharedPtr;
 using RosRateType = ::rclcpp::Rate;
 using RosHeaderType = ::std_msgs::msg::Header;
@@ -599,6 +613,7 @@ using MagneticFieldMsg = ::sensor_msgs::msg::MagneticField;
 using TimeReferenceMsg = ::sensor_msgs::msg::TimeReference;
 using NMEASentenceMsg = ::nmea_msgs::msg::Sentence;
 using StatusMsg = ::microstrain_inertial_msgs::msg::Status;
+using ImuOverrangeStatusMsg = ::microstrain_inertial_msgs::msg::ImuOverrangeStatus;
 using RTKStatusMsg = ::microstrain_inertial_msgs::msg::RTKStatus;
 using RTKStatusMsgV1 = ::microstrain_inertial_msgs::msg::RTKStatusV1;
 using FilterStatusMsg = ::microstrain_inertial_msgs::msg::FilterStatus;
@@ -610,6 +625,9 @@ using GNSSDualAntennaStatusMsg = ::microstrain_inertial_msgs::msg::GNSSDualAnten
 using GNSSFixInfoMsg = ::microstrain_inertial_msgs::msg::GNSSFixInfo;
 using FilterHeadingStateMsg = ::microstrain_inertial_msgs::msg::FilterHeadingState;
 using GPSCorrelationTimestampStampedMsg = ::microstrain_inertial_msgs::msg::GPSCorrelationTimestampStamped;
+using GNSSSbasInfoMsg = ::microstrain_inertial_msgs::msg::GNSSSbasInfo;
+using GNSSRfErrorDetectionMsg = ::microstrain_inertial_msgs::msg::GNSSRfErrorDetection;
+
 using TransformStampedMsg = ::geometry_msgs::msg::TransformStamped;
 
 // ROS2 Transform Broadcaster
@@ -713,6 +731,9 @@ using DeviceReportServiceMsg = microstrain_inertial_msgs::srv::DeviceReport;
 using DeviceSettingsServiceMsg = microstrain_inertial_msgs::srv::DeviceSettings;
 
 using SetFilterSpeedLeverArmServiceMsg = microstrain_inertial_msgs::srv::SetFilterSpeedLeverArm;
+
+// ROS2 aliases not intended to be used outside this file
+using ParamIntVector = std::vector<int64_t>;
 
 // ROS2 Logging
 #define MICROSTRAIN_DEBUG(NODE, ...) RCLCPP_DEBUG(NODE->get_logger(), __VA_ARGS__)
@@ -889,6 +910,40 @@ inline void stopTimer(RosTimerType timer)
 #else
 #error "Unsupported ROS version. -DMICROSTRAIN_ROS_VERSION must be set to 1 or 2"
 #endif
+
+/**
+ * \brief Extention of getParam. Explicitly gets float parameter, even if it was specified as an int
+ * \param node  The ROS node to extract the config from
+ * \param param_name  The name of the config value to extract
+ * \param param_val  Variable to store the extracted config value in
+ * \param default_val  The default value to set param_val to if the config can't be found
+ */
+inline void getParamFloat(RosNodeType* node, const std::string& param_name, float& param_val, const float default_val)
+{
+  // Seems like ROS should be able to figure this out, but for ROS2 at least, we need to cast ints to floats so people don't have to put decimal points
+  try
+  {
+    getParam<float>(node, param_name, param_val, default_val);
+  }
+  catch (const std::exception& e)
+  {
+    int32_t param_val_int;
+    getParam<int32_t>(node, param_name, param_val_int, static_cast<int32_t>(default_val));
+    param_val = static_cast<float>(param_val_int);
+  }
+}
+
+inline void getUint16ArrayParam(RosNodeType* node, const std::string& param_name, std::vector<uint16_t>& param_val, const std::vector<uint16_t>& default_val)
+{
+  // Get the parameter as ints since that is all ROS supports
+  ParamIntVector param_val_int;
+  ParamIntVector default_val_int(default_val.begin(), default_val.end());
+  getParam<ParamIntVector>(node, param_name, param_val_int, default_val_int);
+
+  // Convert the type
+  param_val = std::vector<uint16_t>(param_val_int.begin(), param_val_int.end());
+}
+
 
 }  // namespace microstrain
 

@@ -29,12 +29,15 @@ bool Publishers::configure()
   imu_pub_->configure(node_, config_);
   mag_pub_->configure(node_, config_);
   gps_corr_pub_->configure(node_, config_);
+  imu_overrange_status_pub_->configure(node_, config_);
 
   for (const auto& pub : gnss_pub_) pub->configure(node_, config_);
   for (const auto& pub : gnss_odom_pub_) pub->configure(node_, config_);
   for (const auto& pub : gnss_time_pub_) pub->configure(node_, config_);
   for (const auto& pub : gnss_aiding_status_pub_) pub->configure(node_, config_);
   for (const auto& pub : gnss_fix_info_pub_) pub->configure(node_, config_);
+  for (const auto& pub : gnss_sbas_info_pub_) pub->configure(node_, config_);
+  for (const auto& pub : gnss_rf_error_detection_pub_) pub->configure(node_, config_);
 
   rtk_pub_->configure(node_, config_);
   rtk_pub_v1_->configure(node_, config_);
@@ -81,6 +84,7 @@ bool Publishers::configure()
   transform_broadcaster_ = createTransformBroadcaster(node_);
 
   // Register callbacks for each data field we care about. Note that order is preserved here, so if a data field needs to be parsed before another, change it here.
+  // Prospect shared field callbacks
   for (const uint8_t descriptor_set : std::initializer_list<uint8_t>{mip::data_sensor::DESCRIPTOR_SET, mip::data_gnss::DESCRIPTOR_SET, mip::data_gnss::MIP_GNSS1_DATA_DESC_SET, mip::data_gnss::MIP_GNSS2_DATA_DESC_SET, mip::data_gnss::MIP_GNSS3_DATA_DESC_SET, mip::data_filter::DESCRIPTOR_SET})
   {
     registerDataCallback<mip::data_shared::EventSource, &Publishers::handleSharedEventSource>(descriptor_set);
@@ -92,22 +96,36 @@ bool Publishers::configure()
     registerDataCallback<mip::data_shared::ReferenceTimeDelta, &Publishers::handleSharedReferenceTimeDelta>(descriptor_set);
   }
 
+  // Philo shared field callbacks
   registerDataCallback<mip::data_sensor::GpsTimestamp, &Publishers::handleSensorGpsTimestamp>();
   registerDataCallback<mip::data_gnss::GpsTime, &Publishers::handleGnssGpsTime>();
   registerDataCallback<mip::data_filter::Timestamp, &Publishers::handleFilterTimestamp>();
 
+  // IMU callbacks
   registerDataCallback<mip::data_sensor::ScaledAccel, &Publishers::handleSensorScaledAccel>();
   registerDataCallback<mip::data_sensor::ScaledGyro, &Publishers::handleSensorScaledGyro>();
   registerDataCallback<mip::data_sensor::CompQuaternion, &Publishers::handleSensorCompQuaternion>();
   registerDataCallback<mip::data_sensor::ScaledMag, &Publishers::handleSensorScaledMag>();
+  registerDataCallback<mip::data_sensor::OverrangeStatus, &Publishers::handleSensorOverrangeStatus>();
 
+  // GNSS1/2 callbacks
   for (const uint8_t gnss_descriptor_set : std::initializer_list<uint8_t>{mip::data_gnss::DESCRIPTOR_SET, mip::data_gnss::MIP_GNSS1_DATA_DESC_SET, mip::data_gnss::MIP_GNSS2_DATA_DESC_SET})
   {
     registerDataCallback<mip::data_gnss::PosLlh, &Publishers::handleGnssPosLlh>(gnss_descriptor_set);
     registerDataCallback<mip::data_gnss::VelNed, &Publishers::handleGnssVelNed>(gnss_descriptor_set);
     registerDataCallback<mip::data_gnss::FixInfo, &Publishers::handleGnssFixInfo>(gnss_descriptor_set);
+    registerDataCallback<mip::data_gnss::SbasInfo, &Publishers::handleGnssSbasInfo>(gnss_descriptor_set);
+    registerDataCallback<mip::data_gnss::RfErrorDetection, &Publishers::handleGnssRfErrorDetection>(gnss_descriptor_set);
   }
 
+  // Also register callbacks for GNSS1/2 for the GPS time message
+  // Note: It is important to make sure this is after the GNSS1/2 callbacks
+  for (const uint8_t gnss_descriptor_set : std::initializer_list<uint8_t>{mip::data_gnss::MIP_GNSS1_DATA_DESC_SET, mip::data_gnss::MIP_GNSS2_DATA_DESC_SET})
+  {
+    registerDataCallback<mip::data_gnss::GpsTime, &Publishers::handleGnssGpsTime>(gnss_descriptor_set);
+  }
+
+  // Filter callbacks
   registerDataCallback<mip::data_filter::Status, &Publishers::handleFilterStatus>();
   registerDataCallback<mip::data_filter::EulerAngles, &Publishers::handleFilterEulerAngles>();
   registerDataCallback<mip::data_filter::HeadingUpdateState, &Publishers::handleFilterHeadingUpdateState>();
@@ -132,12 +150,15 @@ bool Publishers::activate()
   imu_pub_->activate();
   mag_pub_->activate();
   gps_corr_pub_->activate();
+  imu_overrange_status_pub_->activate();
 
   for (const auto& pub : gnss_pub_) pub->activate();
   for (const auto& pub : gnss_odom_pub_) pub->activate();
   for (const auto& pub : gnss_time_pub_) pub->activate();
   for (const auto& pub : gnss_aiding_status_pub_) pub->activate();
   for (const auto& pub : gnss_fix_info_pub_) pub->activate();
+  for (const auto& pub : gnss_sbas_info_pub_) pub->activate();
+  for (const auto& pub : gnss_rf_error_detection_pub_) pub->activate();
 
   rtk_pub_->activate();
   rtk_pub_v1_->activate();
@@ -150,6 +171,8 @@ bool Publishers::activate()
   filter_relative_odom_pub_->activate();
   filter_imu_pub_->activate();
   gnss_dual_antenna_status_pub_->activate();
+
+  nmea_sentence_pub_->activate();
   return true;
 }
 
@@ -158,12 +181,15 @@ bool Publishers::deactivate()
   imu_pub_->deactivate();
   mag_pub_->deactivate();
   gps_corr_pub_->deactivate();
+  imu_overrange_status_pub_->deactivate();
 
   for (const auto& pub : gnss_pub_) pub->deactivate();
   for (const auto& pub : gnss_odom_pub_) pub->deactivate();
   for (const auto& pub : gnss_time_pub_) pub->deactivate();
   for (const auto& pub : gnss_aiding_status_pub_) pub->deactivate();
   for (const auto& pub : gnss_fix_info_pub_) pub->deactivate();
+  for (const auto& pub : gnss_sbas_info_pub_) pub->deactivate();
+  for (const auto& pub : gnss_rf_error_detection_pub_) pub->deactivate();
 
   rtk_pub_->deactivate();
   rtk_pub_v1_->deactivate();
@@ -188,12 +214,15 @@ void Publishers::publish()
   imu_pub_->publish();
   mag_pub_->publish();
   gps_corr_pub_->publish();
+  imu_overrange_status_pub_->publish();
 
   for (const auto& pub : gnss_pub_) pub->publish();
   for (const auto& pub : gnss_odom_pub_) pub->publish();
   for (const auto& pub : gnss_time_pub_) pub->publish();
   for (const auto& pub : gnss_aiding_status_pub_) pub->publish();
   for (const auto& pub : gnss_fix_info_pub_) pub->publish();
+  for (const auto& pub : gnss_sbas_info_pub_) pub->publish();
+  for (const auto& pub : gnss_rf_error_detection_pub_) pub->publish();
 
   rtk_pub_->publish();
   rtk_pub_v1_->publish();
@@ -326,6 +355,21 @@ void Publishers::handleSensorScaledMag(const mip::data_sensor::ScaledMag& scaled
   }
 }
 
+void Publishers::handleSensorOverrangeStatus(const mip::data_sensor::OverrangeStatus& overrange_status, const uint8_t descriptor_set, mip::Timestamp timestamp)
+{
+  auto imu_overrange_status_msg = imu_overrange_status_pub_->getMessageToUpdate();
+  imu_overrange_status_msg->status_accel_x = overrange_status.status.accelX();
+  imu_overrange_status_msg->status_accel_y = overrange_status.status.accelY();
+  imu_overrange_status_msg->status_accel_z = overrange_status.status.accelZ();
+  imu_overrange_status_msg->status_gyro_x = overrange_status.status.gyroX();
+  imu_overrange_status_msg->status_gyro_y = overrange_status.status.gyroY();
+  imu_overrange_status_msg->status_gyro_z = overrange_status.status.gyroZ();
+  imu_overrange_status_msg->status_mag_x = overrange_status.status.magX();
+  imu_overrange_status_msg->status_mag_y = overrange_status.status.magY();
+  imu_overrange_status_msg->status_mag_z = overrange_status.status.magZ();
+  imu_overrange_status_msg->status_press = overrange_status.status.press();
+}
+
 void Publishers::handleGnssGpsTime(const mip::data_gnss::GpsTime& gps_time, const uint8_t descriptor_set, mip::Timestamp timestamp)
 {
   // Convert the old philo timestamp into the new format and store it in the map
@@ -334,6 +378,23 @@ void Publishers::handleGnssGpsTime(const mip::data_gnss::GpsTime& gps_time, cons
   stored_timestamp.week_number = gps_time.week_number;
   stored_timestamp.valid_flags = gps_time.valid_flags;
   gps_timestamp_mapping_[descriptor_set] = stored_timestamp;
+
+  // Also update the time ref messages
+  uint8_t gnss_index;
+  switch (descriptor_set)
+  {
+    case mip::data_gnss::MIP_GNSS1_DATA_DESC_SET:
+      gnss_index = 0;
+      break;
+    case mip::data_gnss::MIP_GNSS2_DATA_DESC_SET:
+      gnss_index = 1;
+      break;
+    default:
+      return;
+  }
+  auto gps_time_msg = gnss_time_pub_[gnss_index]->getMessageToUpdate();
+  gps_time_msg->header.stamp = rosTimeNow(node_);
+  setGpsTime(&gps_time_msg->time_ref, stored_timestamp);
 }
 
 void Publishers::handleGnssPosLlh(const mip::data_gnss::PosLlh& pos_llh, const uint8_t descriptor_set, mip::Timestamp timestamp)
@@ -404,6 +465,62 @@ void Publishers::handleGnssFixInfo(const mip::data_gnss::FixInfo& fix_info, cons
   gnss_fix_info_msg->num_sv = fix_info.num_sv;
   gnss_fix_info_msg->sbas_used = fix_info.fix_flags & mip::data_gnss::FixInfo::FixFlags::SBAS_USED;
   gnss_fix_info_msg->dngss_used = fix_info.fix_flags & mip::data_gnss::FixInfo::FixFlags::DGNSS_USED;
+}
+
+void Publishers::handleGnssRfErrorDetection(const mip::data_gnss::RfErrorDetection& rf_error_detection, const uint8_t descriptor_set, mip::Timestamp timestamp)
+{
+  // Find the right index for the message
+  uint8_t gnss_index;
+  switch (descriptor_set)
+  {
+    case mip::data_gnss::MIP_GNSS1_DATA_DESC_SET:
+      gnss_index = 0;
+      break;
+    case mip::data_gnss::MIP_GNSS2_DATA_DESC_SET:
+      gnss_index = 1;
+      break;
+    default:
+      return;  // Nothing to do if the descriptor set is not something we recognize
+  }
+
+  // Different message depending on the descriptor set
+  auto rf_error_detection_msg = gnss_rf_error_detection_pub_[gnss_index]->getMessageToUpdate();
+  rf_error_detection_msg->rf_band = static_cast<uint8_t>(rf_error_detection.rf_band);
+  rf_error_detection_msg->jamming_state = static_cast<uint8_t>(rf_error_detection.jamming_state);
+  rf_error_detection_msg->spoofing_state = static_cast<uint8_t>(rf_error_detection.spoofing_state);
+  rf_error_detection_msg->valid_flags = rf_error_detection.valid_flags;
+}
+
+void Publishers::handleGnssSbasInfo(const mip::data_gnss::SbasInfo& sbas_info, const uint8_t descriptor_set, mip::Timestamp timestamp)
+{
+  // Find the right index for the message
+  uint8_t gnss_index;
+  switch (descriptor_set)
+  {
+    case mip::data_gnss::MIP_GNSS1_DATA_DESC_SET:
+      gnss_index = 0;
+      break;
+    case mip::data_gnss::MIP_GNSS2_DATA_DESC_SET:
+      gnss_index = 1;
+      break;
+    default:
+      return;  // Nothing to do if the descriptor set is not something we recognize
+  }
+
+  // Different message depending on descriptor
+  auto sbas_info_msg = gnss_sbas_info_pub_[gnss_index]->getMessageToUpdate();
+  sbas_info_msg->gps_tow = sbas_info.time_of_week;
+  sbas_info_msg->gps_week_number = sbas_info.week_number;
+  sbas_info_msg->sbas_system = static_cast<uint8_t>(sbas_info.sbas_system);
+  sbas_info_msg->sbas_id = sbas_info.sbas_id;
+  sbas_info_msg->count = sbas_info.count;
+
+  sbas_info_msg->status_range_available = sbas_info.sbas_status.rangeAvailable();
+  sbas_info_msg->status_corrections_available = sbas_info.sbas_status.correctionsAvailable();
+  sbas_info_msg->status_integrity_available = sbas_info.sbas_status.integrityAvailable();
+  sbas_info_msg->status_test_mode = sbas_info.sbas_status.testMode();
+
+  sbas_info_msg->valid_flags = sbas_info.valid_flags;
 }
 
 void Publishers::handleRtkCorrectionsStatus(const mip::data_gnss::RtkCorrectionsStatus& rtk_corrections_status, const uint8_t descriptor_set, mip::Timestamp timestamp)
@@ -829,15 +946,7 @@ void Publishers::updateHeaderTime(RosHeaderType* header, uint8_t descriptor_set,
     if (gps_timestamp_mapping_.find(descriptor_set) != gps_timestamp_mapping_.end())
     {
       // Convert the GPS time to UTC
-      const mip::data_shared::GpsTimestamp& gps_timestamp = gps_timestamp_mapping_[descriptor_set];
-
-      // Split the seconds and subseconds out to get around the double resolution issue
-      double seconds;
-      double subseconds = modf(gps_timestamp.tow, &seconds);
-
-      // Seconds since start of Unix time = seconds between 1970 and 1980 + number of weeks since 1980 * number of seconds in a week + number of complete seconds past in current week - leap seconds since start of GPS time
-      const uint64_t utc_milliseconds = static_cast<uint64_t>((315964800 + gps_timestamp.week_number * 604800 + static_cast<uint64_t>(seconds) - 18) * 1000L) + static_cast<uint64_t>(std::round(subseconds * 1000.0));
-      setRosTime(&header->stamp, utc_milliseconds / 1000, (utc_milliseconds % 1000) * 1000);
+      setGpsTime(&header->stamp, gps_timestamp_mapping_[descriptor_set]);
     }
   }
   else if (config_->use_ros_time_)
@@ -848,6 +957,17 @@ void Publishers::updateHeaderTime(RosHeaderType* header, uint8_t descriptor_set,
   {
     setRosTime(&header->stamp, timestamp / 1000, (timestamp % 1000) * 1000);
   }
+}
+
+void Publishers::setGpsTime(RosTimeType* time, const mip::data_shared::GpsTimestamp& timestamp)
+{
+  // Split the seconds and subseconds out to get around the double resolution issue
+  double seconds;
+  double subseconds = modf(timestamp.tow, &seconds);
+
+  // Seconds since start of Unix time = seconds between 1970 and 1980 + number of weeks since 1980 * number of seconds in a week + number of complete seconds past in current week - leap seconds since start of GPS time
+  const uint64_t utc_milliseconds = static_cast<uint64_t>((315964800 + timestamp.week_number * 604800 + static_cast<uint64_t>(seconds) - 18) * 1000L) + static_cast<uint64_t>(std::round(subseconds * 1000.0));
+  setRosTime(time, utc_milliseconds / 1000, (utc_milliseconds % 1000) * 1000);
 }
 
 }  // namespace microstrain
